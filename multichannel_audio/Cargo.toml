@@ -1,0 +1,25 @@
+[package]
+name = "multichannel_audio"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79.0"
+publish = true
+
+repository = "https://github.com/Zerosound-Systems-Inc/rust-audio"
+authors = ["Dani <danijourdain@icloud.com>"]
+description = "Play and record multichannel audio in Rust"
+license = "MIT"
+readme = "README.md"
+
+keywords = ["audio", "sound"]
+categories = ["hardware-support", "multimedia::audio"]
+
+[lib]
+name = "multichannel_audio"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1.0.83"
+cpal = { version = "0.15.3", features = ["asio"] }
+hound = "3.5.1"
+lazy_static = "1.4.0"

@@ -19,6 +19,8 @@ rust_audio = "0.1.0"
 
 ## How To Use
 
+- If you are on Windows, please follow the directions in the [CPAL Documentation](https://crates.io/crates/cpal) in the *ASIO on Windows* section to set up the ASIO SDK.
+
 - Initialize the audio device once at the start of your program.
 
 - Prepare a 2-dimensional audio array with number of columns equal to the number of channels on your audio device. Ex. If playing on a stereo 2-channel device, your array would be 2 by x where x is the number of samples to play.
