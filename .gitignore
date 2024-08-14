@@ -1,4 +1,4 @@
 /target
 Cargo.lock
-src/main.rs
 APIkey.txt
+multichannel_audio_bin/
