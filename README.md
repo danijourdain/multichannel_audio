@@ -34,7 +34,7 @@ let signal = generate_gaussian_white_noise(5.0, 48000, None);
 let mut multichannel_signal = vec![vec![0; 5 * 48000]; 6];
 multichannel_signal[0] = signal;
 
-let audio_instance = audio_class::ZsiAudio::new(48000).unwrap();
+let audio_instance = audio_class::AudioInstance::new(48000).unwrap();
 audio_instance.play(multichannel_signal).unwrap();
 ```
 
@@ -42,7 +42,7 @@ Record for 5 seconds
 ```rust
 set_host_and_audio_device().unwrap();
 
-let audio_instance = audio_class::ZsiAudio::new(48000).unwrap();
+let audio_instance = audio_class::AudioInstance::new(48000).unwrap();
 let recording = audio_instance.record(5.0).unwrap();
 ```
 
