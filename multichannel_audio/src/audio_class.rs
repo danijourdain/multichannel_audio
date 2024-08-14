@@ -272,3 +272,128 @@ impl AudioInstance {
         channel_recordings
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::methods::set_host_and_audio_device;
+
+    use super::*;
+
+    lazy_static::lazy_static! { static ref TESTING_AUDIO_INSTANCE: Mutex<Option<AudioInstance>> = Mutex::new(None);}
+
+    fn get_audio_instance() -> &'static Mutex<Option<AudioInstance>> {
+        let mut audio_instance = TESTING_AUDIO_INSTANCE.lock().unwrap();
+        if audio_instance.is_none() {
+            println!("Creating new audio instance");
+            let sample_rate = 44100;
+            set_host_and_audio_device().unwrap();
+            let new_audio_instance = AudioInstance::new(sample_rate).unwrap();
+            *audio_instance = Some(new_audio_instance);
+        }
+
+        assert!(audio_instance.is_some());
+        &TESTING_AUDIO_INSTANCE
+    }
+
+    #[test]
+    fn test_audio_instance_new() {
+        let sample_rate = 44100;
+        // get any instance that already exists
+        let lock = get_audio_instance();
+        let instance = lock.lock().unwrap();
+
+        // drop existing instance to be able to create a new one
+        if instance.is_some() {
+            drop(instance);
+        }
+
+        // create a new instance
+        let audio_instance = AudioInstance::new(sample_rate);
+        assert!(audio_instance.is_ok(), "{:?}", audio_instance.err());
+        let audio_instance = audio_instance.unwrap();
+        assert_eq!(audio_instance.sample_rate, sample_rate);
+        assert!(audio_instance.input_stream_controller.is_some());
+        assert!(audio_instance.output_stream_controller.is_some());
+
+        // drop the instance to clean up
+        let instance = lock.lock().unwrap();
+        if instance.is_some() {
+            drop(instance);
+        }
+    }
+
+    #[test]
+    fn test_play() {
+        let sample_rate = 44100;
+        let audio_instance_lock = get_audio_instance().lock().unwrap();
+        let audio_instance = audio_instance_lock.as_ref().unwrap();
+
+        let output_data =
+            vec![vec![0; sample_rate]; audio_instance.number_of_output_channels as usize];
+        let result = audio_instance.play(output_data);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_record() {
+        let audio_instance_lock = get_audio_instance().lock().unwrap();
+        let audio_instance = audio_instance_lock.as_ref().unwrap();
+
+        let duration = 1.0;
+        let result = audio_instance.record(duration);
+        assert!(result.is_ok());
+        let recorded_data = result.unwrap();
+        assert_eq!(
+            recorded_data.len(),
+            audio_instance.number_of_input_channels as usize
+        );
+    }
+
+    #[test]
+    fn test_play_record() {
+        let audio_instance_lock = get_audio_instance().lock().unwrap();
+        let audio_instance = audio_instance_lock.as_ref().unwrap();
+
+        let output_data = vec![vec![0; 44100]; audio_instance.number_of_output_channels as usize];
+        let result = audio_instance.play_record(output_data);
+        assert!(result.is_ok());
+        let recorded_data = result.unwrap();
+        assert_eq!(
+            recorded_data.len(),
+            audio_instance.number_of_input_channels as usize
+        );
+    }
+
+    #[test]
+    fn test_play_invalid_channels() {
+        let audio_instance_lock = get_audio_instance().lock().unwrap();
+        let audio_instance = audio_instance_lock.as_ref().unwrap();
+
+        let output_data =
+            vec![vec![0; 44100]; (audio_instance.number_of_output_channels - 1) as usize];
+        let result = audio_instance.play(output_data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_record_duration() {
+        let sample_rate = 44100;
+        let audio_instance_lock = get_audio_instance().lock().unwrap();
+        let audio_instance = audio_instance_lock.as_ref().unwrap();
+
+        let duration = 2.0;
+        let result = audio_instance.record(duration);
+        assert!(result.is_ok());
+        let recorded_data = result.unwrap();
+        let expected_samples = (sample_rate as f64 * duration) as usize;
+        assert_eq!(recorded_data[0].len(), expected_samples);
+    }
+
+    #[test]
+    fn test_drop() {
+        let audio_instance = get_audio_instance().lock().unwrap();
+
+        // drop the instance
+        drop(audio_instance);
+    }
+}
