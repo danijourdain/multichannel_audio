@@ -17,7 +17,7 @@ categories = ["hardware-support", "multimedia::audio"]
 
 [lib]
 name = "multichannel_audio"
-path = "src/mod.rs"
+path = "src/lib.rs"
 
 [[bin]]
 name = "multichannel_audio_bin"

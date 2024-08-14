@@ -201,19 +201,15 @@ impl AudioInstance {
         // Set up the output buffer
         let flattened_data = self.flatten_output_data(output_data);
         *self.output_buffer.lock().unwrap() = flattened_data;
-        println!("Got output buffer");
 
         // Start playback in a separate thread
         let play_handle = {
-            println!("Starting play thread");
-
             let play_wait_clone = Arc::clone(&self.play_wait_pair);
 
             std::thread::spawn(move || {
                 let (lock, cvar) = &*play_wait_clone;
                 let mut play_wait = lock.lock().unwrap();
                 *play_wait = true;
-                println!("got play wait");
 
                 while *play_wait {
                     play_wait = cvar.wait(play_wait).unwrap();
@@ -225,20 +221,16 @@ impl AudioInstance {
         let input_buffer_capacity =
             (self.sample_rate as f64 * duration) as usize * self.number_of_input_channels as usize;
         *self.input_buffer.lock().unwrap() = Vec::<i32>::with_capacity(input_buffer_capacity);
-        println!("Got input buffer");
 
         // Create condition variables to synchronize play and record
         let record_wait_pair_clone = Arc::clone(&self.record_wait_pair);
 
         // Start recording in a separate thread
         let record_handle = {
-            println!("Starting record thread");
-
             std::thread::spawn(move || {
                 let (lock, cvar) = &*record_wait_pair_clone;
                 let mut record_wait = lock.lock().unwrap();
                 *record_wait = true;
-                println!("got record wait");
 
                 while *record_wait {
                     record_wait = cvar.wait(record_wait).unwrap();

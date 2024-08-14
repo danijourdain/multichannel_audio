@@ -26,7 +26,9 @@ rust_audio = "0.1.0"
 - Record for a specified duration into a new 2-dimensional array. The same principles apply as playback for the shape of the data.
 
 ## Examples
+
 Play White Noise out of channel 1 of a 6-channel audio device at 48kHz sample rate
+
 ```rust
 set_host_and_audio_device().unwrap();
 
@@ -39,6 +41,7 @@ audio_instance.play(multichannel_signal).unwrap();
 ```
 
 Record for 5 seconds
+
 ```rust
 set_host_and_audio_device().unwrap();
 
