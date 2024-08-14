@@ -14,7 +14,7 @@ Add the following to your Cargo.toml file
 
 ```toml
 [dependencies]
-rust_audio = "0.1.0"
+multichannel_audio = "0.1.0"
 ```
 
 ## How To Use
