@@ -1,0 +1,33 @@
+name: Publish to crates.io (currently only does dry run)
+on:
+    push:
+        branches: 
+            - main
+
+    workflow_dispatch: 
+
+jobs:
+    build_and_publish:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v2=
+            - uses: dtolnay/rust-toolchain@stable
+
+            - name: cargo-release Cache
+              id: cargo-release-cache
+              uses: actions/cache@v2
+              with:
+                path: ~/.cargo/bin/cargo-release
+                key: ${{ runner.os }}-cargo-release
+
+            - run: cargo install cargo-release
+              if: steps.cargo-release-cache.outputs.cache-hit != 'true'
+
+            - name: cargo Login
+              run: cargo login ${{ secrets.CRATES_IO_API_KEY }}
+
+            - name: cargo Release
+              run: cargo release --dry-run -p multichannel_audio
+
+        
