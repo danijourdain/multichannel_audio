@@ -10,21 +10,11 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 10
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
 
             - name: Install libasound2-dev
               run: sudo apt-get install libasound2-dev
-
-            # - name: cargo-release Cache
-            #   id: cargo-release-cache
-            #   uses: actions/cache@v2
-            #   with:
-            #     path: ~/.cargo/bin/cargo-release
-            #     key: ${{ runner.os }}-cargo-release
-
-            # - run: cargo install cargo-release
-            #   if: steps.cargo-release-cache.outputs.cache-hit != 'true'
 
             - name: cargo Login
               run: cargo login ${{ secrets.CRATES_IO_API_KEY }}
