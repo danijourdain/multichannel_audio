@@ -1,12 +1,9 @@
 name: Publish to crates.io (currently only does dry run)
 on:
+    pull_request: {}
     push:
         branches: 
             - main
-    pull_request:
-        branches:
-            - main
-            - workflows
 
 jobs:
     build_and_publish:
