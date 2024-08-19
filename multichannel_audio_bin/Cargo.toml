@@ -1,0 +1,11 @@
+[package]
+name = "multichannel_audio_bin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+multichannel_audio = { path = "../multichannel_audio" }
+
+[[bin]]
+name = "multichannel_audio_bin"
+path = "src/main.rs"
