@@ -1,4 +1,4 @@
 /target
 Cargo.lock
 APIkey.txt
-multichannel_audio_bin/
+multichannel_audio_bin/src/
