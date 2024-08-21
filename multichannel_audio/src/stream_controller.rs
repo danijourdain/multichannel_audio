@@ -15,6 +15,9 @@ pub(crate) enum StreamCommand {
     Stop,
 }
 
+/// The possible types of audio stream.
+///
+/// Input streams are used to record and output streams are used to play audio.
 #[derive(Clone)]
 pub enum StreamType {
     Input {
@@ -36,6 +39,11 @@ impl fmt::Debug for StreamType {
     }
 }
 
+/// The possible states of an audio stream.
+///
+/// Playing means the stream is currently running.
+///
+/// Stopped means the stream is not currently running.
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub enum StreamState {
     Playing,
