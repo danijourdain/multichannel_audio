@@ -11,7 +11,20 @@ use std::sync::Mutex;
 use crate::missing_device_error::MissingDeviceError;
 
 lazy_static! {
+    /// The audio host to use for audio I/O
+    ///
+    /// ## Example:
+    ///
+    /// ```ignore
+    /// cpal::host_from_id(cpal::HostId::Asio).unwrap()
+    /// ```
     pub static ref HOST: Mutex<Option<cpal::Host>> = Mutex::new(None);
+    /// The name of the audio device to use for audio I/O.
+    ///
+    /// ## Example:
+    /// ```ignore
+    /// Focusrite USB ASIO
+    /// ```
     pub static ref DEVICE_NAME: Mutex<String> = Mutex::new(String::new());
 }
 

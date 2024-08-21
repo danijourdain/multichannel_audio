@@ -1,14 +1,23 @@
+use std::fmt::Formatter;
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
+use std::{fmt, thread};
 
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{InputCallbackInfo, OutputCallbackInfo, Stream};
 
-pub enum StreamCommand {
+lazy_static::lazy_static!(
+    static ref INPUT_STREAM_STATE: Arc<Mutex<StreamState>> = Arc::new(Mutex::new(StreamState::Stopped));
+    static ref OUTPUT_STREAM_STATE: Arc<Mutex<StreamState>> = Arc::new(Mutex::new(StreamState::Stopped));
+);
+
+pub(crate) enum StreamCommand {
     Play,
     Stop,
 }
 
+/// The possible types of audio stream.
+///
+/// Input streams are used to record and output streams are used to play audio.
 #[derive(Clone)]
 pub enum StreamType {
     Input {
@@ -21,9 +30,36 @@ pub enum StreamType {
     },
 }
 
+impl fmt::Debug for StreamType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            StreamType::Input { .. } => write!(f, "Input"),
+            StreamType::Output { .. } => write!(f, "Output"),
+        }
+    }
+}
+
+/// The possible states of an audio stream.
+///
+/// Playing means the stream is currently running.
+///
+/// Stopped means the stream is not currently running.
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum StreamState {
+    Playing,
+    Stopped,
+}
+
 #[derive(Clone)]
 pub(crate) struct StreamController {
     command_sender: mpsc::Sender<StreamCommand>,
+    stream_type: StreamType,
+}
+
+impl Drop for StreamController {
+    fn drop(&mut self) {
+        self.send_command(StreamCommand::Stop);
+    }
 }
 
 impl StreamController {
@@ -31,6 +67,7 @@ impl StreamController {
         let (sender, receiver) = mpsc::channel();
         let config_clone = config.clone(); // Clone output_config
 
+        let stream_type_clone = stream_type.clone();
         thread::spawn(move || {
             let mut stream: Option<Stream> = None; // Initially, there's no stream
 
@@ -81,11 +118,38 @@ impl StreamController {
 
         StreamController {
             command_sender: sender,
+            stream_type: stream_type_clone,
         }
     }
 
     pub fn send_command(&self, command: StreamCommand) {
+        match command {
+            StreamCommand::Play => match self.stream_type {
+                StreamType::Input { .. } => {
+                    *INPUT_STREAM_STATE.lock().unwrap() = StreamState::Playing;
+                }
+                StreamType::Output { .. } => {
+                    *OUTPUT_STREAM_STATE.lock().unwrap() = StreamState::Playing;
+                }
+            },
+            StreamCommand::Stop => match self.stream_type {
+                StreamType::Input { .. } => {
+                    *INPUT_STREAM_STATE.lock().unwrap() = StreamState::Stopped;
+                }
+                StreamType::Output { .. } => {
+                    *OUTPUT_STREAM_STATE.lock().unwrap() = StreamState::Stopped;
+                }
+            },
+        }
+
         self.command_sender.send(command).unwrap();
+    }
+
+    pub fn get_state(&self) -> StreamState {
+        match self.stream_type {
+            StreamType::Input { .. } => *INPUT_STREAM_STATE.lock().unwrap(),
+            StreamType::Output { .. } => *OUTPUT_STREAM_STATE.lock().unwrap(),
+        }
     }
 }
 
