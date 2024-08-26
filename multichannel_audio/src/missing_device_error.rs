@@ -2,6 +2,7 @@ use std::{error::Error, fmt};
 
 use cpal::HostUnavailable;
 
+/// Error type for when the audio device is missing.
 #[derive(Debug)]
 pub enum MissingDeviceError {
     Error(String),

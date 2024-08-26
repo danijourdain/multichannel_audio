@@ -1,0 +1,25 @@
+name: Publish to crates.io (currently only does dry run)
+on:
+    pull_request: {}
+    push:
+        branches: 
+            - main
+
+jobs:
+    build_and_publish:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+
+            - name: Install libasound2-dev
+              run: sudo apt-get install libasound2-dev
+
+            - name: cargo Login
+              run: cargo login ${{ secrets.CRATES_IO_API_KEY }}
+
+            - name: cargo Publish
+              run: cargo publish --dry-run -p multichannel_audio
+
+        

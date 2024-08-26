@@ -5,6 +5,11 @@ use anyhow::Ok;
 use cpal::traits::{DeviceTrait, HostTrait};
 use std::sync::{Arc, Mutex};
 
+enum StreamControllerType {
+    Input,
+    Output,
+}
+
 #[derive(Clone)]
 /// Audio class for handling audio input and output
 pub struct AudioInstance {
@@ -23,27 +28,16 @@ pub struct AudioInstance {
 unsafe impl Send for AudioInstance {}
 unsafe impl Sync for AudioInstance {}
 
-impl Drop for AudioInstance {
-    fn drop(&mut self) {
-        // stop the streams
-        if let Some(ref output_stream_controller) = self.output_stream_controller {
-            output_stream_controller.send_command(super::stream_controller::StreamCommand::Stop);
-        }
-        if let Some(ref input_stream_controller) = self.input_stream_controller {
-            input_stream_controller.send_command(super::stream_controller::StreamCommand::Stop);
-        }
-    }
-}
-
 impl AudioInstance {
     /// Create a new audio instance. This will use the device that has already been initialized.
     ///
     /// # Arguments
     /// fs: u32 - the sample rate of the audio device
     ///
-    /// # Panics
-    /// Panics if the host has not been initialized
-    /// Panics if the device is not found
+    /// # Errors
+    /// Returns an error if the audio instance already exists
+    /// Returns an error if the host has not been initialized
+    /// Returns an error if the device is not found
     pub fn new(fs: u32) -> Result<Self, anyhow::Error> {
         // audio overhead - set up the audio device
         let device_name = DEVICE_NAME.lock().unwrap().clone();
@@ -127,6 +121,9 @@ impl AudioInstance {
             return Err(anyhow::Error::msg("Number of channels does not match"));
         }
 
+        // ensure the stream is running
+        self.ensure_stream_running(StreamControllerType::Output)?;
+
         let flattened_output_data = self.flatten_output_data(output_data);
 
         // initialize the output buffer
@@ -145,6 +142,29 @@ impl AudioInstance {
         Ok(())
     }
 
+    fn ensure_stream_running(
+        &self,
+        stream_controller_type: StreamControllerType,
+    ) -> Result<(), anyhow::Error> {
+        // confirm the stream is running
+        let stream_controller = match stream_controller_type {
+            StreamControllerType::Input => &self.input_stream_controller,
+            StreamControllerType::Output => &self.output_stream_controller,
+        };
+
+        match stream_controller {
+            Some(ref s) => {
+                if s.get_state() == super::stream_controller::StreamState::Stopped {
+                    s.send_command(super::stream_controller::StreamCommand::Play);
+                }
+            }
+            None => {
+                return Err(anyhow::Error::msg("Output stream controller not found"));
+            }
+        }
+        Ok(())
+    }
+
     /// Record multiple channels of audio data.
     ///
     /// This function blocks until the audio has finished recording.
@@ -155,6 +175,9 @@ impl AudioInstance {
     /// # Returns
     /// A vector of channels where each channel is a vector of samples
     pub fn record(&self, duration: f64) -> Result<Vec<Vec<i32>>, anyhow::Error> {
+        // ensure the stream is running
+        self.ensure_stream_running(StreamControllerType::Input)?;
+
         let sample_rate = self.sample_rate;
 
         // ensure the buffer is empty
@@ -192,6 +215,10 @@ impl AudioInstance {
                 output_data.len()
             )));
         }
+
+        // ensure the streams are running
+        self.ensure_stream_running(StreamControllerType::Output)?;
+        self.ensure_stream_running(StreamControllerType::Input)?;
 
         // get the duration of the playback in seconds
         // this is used for the record section
