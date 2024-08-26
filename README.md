@@ -1,5 +1,11 @@
 # Multichannel Rust Audio
 
+[![Rust Package](https://img.shields.io/crates/v/multichannel_audio)](https://crates.io/crates/multichannel_audio)
+![Crates.io Downloads (latest version)](https://img.shields.io/crates/dv/multichannel_audio)
+![Crates.io License](https://img.shields.io/crates/l/multichannel_audio)
+![Crates.io MSRV](https://img.shields.io/crates/msrv/multichannel_audio)
+
+
 This library provides an easy to use audio library to play and record multi-channel audio.
 
 It is inspired by [Python Sounddevice](https://python-sounddevice.readthedocs.io/) and its beginner-friendly functions.
