@@ -1,0 +1,20 @@
+name: Run cargo test
+on:
+    pull_request: {}
+    push:
+        branches: 
+            - unit-test
+
+jobs:
+    build_and_test:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+
+            - name: Install libasound2-dev
+              run: sudo apt-get install libasound2-dev
+
+            - name: cargo Test
+              run: cargo test --all
