@@ -145,6 +145,10 @@ pub fn format_signal_for_multichannel(
     playback_index: usize,
     output_channels: usize,
 ) -> Vec<Vec<i32>> {
+    if playback_index >= output_channels {
+        return vec![];
+    }
+
     let mut multi_channel_data = vec![vec![0; signal.len()]; output_channels];
     multi_channel_data[playback_index] = signal;
     multi_channel_data
@@ -227,4 +231,113 @@ pub fn read_wave_file(filepath: &Path, fs: u32) -> Result<Vec<i32>, hound::Error
     };
 
     Ok(samples)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_set_host_and_audio_device() {
+        let _ = set_host_and_audio_device();
+    }
+
+    #[test]
+    fn test_generate_sine_wave() {
+        let fs = 48000;
+        let frequency = 1000;
+        let duration = 1.0;
+        let signal = generate_sine_wave(frequency, duration, fs);
+
+        assert_eq!(signal.len(), (fs as f32 * duration) as usize);
+    }
+
+    #[test]
+    fn test_zero_duration_generate_sine_wave() {
+        let fs = 48000;
+        let frequency = 1000;
+        let duration = 0.0;
+        let signal = generate_sine_wave(frequency, duration, fs);
+
+        assert_eq!(signal.len(), 0);
+    }
+
+    #[test]
+    fn test_fractional_duration_generate_sine_wave() {
+        let fs = 48000;
+        let frequency = 1000;
+        let duration = 0.5;
+        let signal = generate_sine_wave(frequency, duration, fs);
+
+        assert_eq!(signal.len(), (fs as f32 * duration) as usize);
+    }
+
+    #[test]
+    fn test_negative_duration_generate_sine_wave() {
+        let fs = 48000;
+        let frequency = 1000;
+        let duration = -1.0;
+        let signal = generate_sine_wave(frequency, duration, fs);
+
+        assert_eq!(signal.len(), 0);
+    }
+
+    #[test]
+    fn test_generate_gaussian_white_noise() {
+        let fs = 48000;
+        let duration = 1.0;
+        let signal = generate_gaussian_white_noise(duration, fs, None);
+
+        assert_eq!(signal.len(), (fs as f32 * duration) as usize);
+    }
+
+    #[test]
+    fn test_zero_duration_generate_gaussian_white_noise() {
+        let fs = 48000;
+        let duration = 0.0;
+        let signal = generate_gaussian_white_noise(duration, fs, None);
+
+        assert_eq!(signal.len(), 0);
+    }
+
+    #[test]
+    fn test_fractional_duration_generate_gaussian_white_noise() {
+        let fs = 48000;
+        let duration = 0.5;
+        let signal = generate_gaussian_white_noise(duration, fs, None);
+
+        assert_eq!(signal.len(), (fs as f32 * duration) as usize);
+    }
+
+    #[test]
+    fn test_negative_duration_generate_gaussian_white_noise() {
+        let fs = 48000;
+        let duration = -1.0;
+        let signal = generate_gaussian_white_noise(duration, fs, None);
+
+        assert_eq!(signal.len(), 0);
+    }
+
+    #[test]
+    fn test_format_signal_for_multichannel() {
+        let signal = vec![1, 2, 3, 4, 5];
+        let playback_index = 1;
+        let output_channels = 3;
+        let formatted_signal =
+            format_signal_for_multichannel(signal.clone(), playback_index, output_channels);
+
+        assert_eq!(formatted_signal.len(), output_channels);
+        assert_eq!(formatted_signal[playback_index], signal);
+    }
+
+    #[test]
+    fn test_higher_playback_index_than_number_of_channels() {
+        let signal = vec![1, 2, 3, 4, 5];
+        let playback_index = 4;
+        let output_channels = 3;
+        let formatted_signal =
+            format_signal_for_multichannel(signal, playback_index as usize, output_channels);
+
+        assert_eq!(formatted_signal.len(), 0);
+    }
 }
