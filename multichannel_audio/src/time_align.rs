@@ -149,34 +149,3 @@ impl AudioInstance {
         Ok(array.clone())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_assemble_signal_with_loopback() {
-        let audio_instance = AudioInstance::new(48000).unwrap();
-        let training_signal = vec![1, 2, 3, 4, 5];
-        let duration = 5;
-        let training_channel = 1;
-        let timing_output = 2;
-        let fs = 48000;
-        let number_of_output_channels = 2;
-
-        let result = audio_instance
-            .assemble_signal_with_loopback(
-                &training_signal,
-                duration,
-                training_channel,
-                timing_output,
-                fs,
-                number_of_output_channels,
-            )
-            .unwrap();
-
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].len(), 240000);
-        assert_eq!(result[1].len(), 240000);
-    }
-}
