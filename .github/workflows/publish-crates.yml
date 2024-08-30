@@ -1,4 +1,4 @@
-name: Publish to crates.io 
+name: Publish to crates.io
 on:
     pull_request: {}
     push:
@@ -6,7 +6,7 @@ on:
             - main
 
 jobs:
-    build_and_publish:
+    cargo_publish_dry_run:
         runs-on: ubuntu-latest
         timeout-minutes: 10
         steps:
@@ -20,6 +20,22 @@ jobs:
               run: cargo login ${{ secrets.CRATES_IO_API_KEY }}
 
             - name: cargo Publish
-              run: cargo publish -p multichannel_audio
+              run: cargo publish --dry-run -p multichannel_audio
 
-        
+    build_and_publish:
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        needs: cargo_publish_dry_run
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+
+            - name: Install libasound2-dev
+              run: sudo apt-get install libasound2-dev
+
+            - name: cargo Login
+              run: cargo login ${{ secrets.CRATES_IO_API_KEY }}
+
+            - name: cargo Publish
+              run: cargo publish -p multichannel_audio
