@@ -1,9 +1,6 @@
 name: Run cargo test
 on:
-    pull_request: {}
-    push:
-        branches: 
-            - unit-test
+    push
 
 jobs:
     build_and_test:
