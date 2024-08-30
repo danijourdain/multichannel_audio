@@ -30,6 +30,7 @@ impl AudioInstance {
         let aligned_data = self.align_with_loopback(&mut recorded_data, timing_channel_in)?;
         Ok(aligned_data)
     }
+
     fn assemble_signal_with_loopback(
         &self,
         training_signal: &Vec<i32>,
