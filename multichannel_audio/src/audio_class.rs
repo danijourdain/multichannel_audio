@@ -1,4 +1,10 @@
-use crate::{methods::set_host_and_audio_device, stream_controller::StreamController};
+use crate::{
+    audio_settings::{DEFAULT_SAMPLE_FORMAT, DEFAULT_SAMPLE_RATE},
+    methods::set_host_and_audio_device,
+    sample_formats::SampleFormat,
+    sample_rates::SampleRate,
+    stream_controller::StreamController,
+};
 
 use super::methods::{DEVICE_NAME, HOST};
 use anyhow::Ok;
@@ -13,12 +19,14 @@ enum StreamControllerType {
 #[derive(Clone)]
 /// Audio class for handling audio input and output
 pub struct AudioInstance {
+    sample_rate: SampleRate,
+    sample_format: SampleFormat,
+
     input_buffer: Arc<Mutex<Vec<i32>>>,
     output_buffer: Arc<Mutex<Vec<i32>>>,
     input_stream_controller: Option<StreamController>,
     output_stream_controller: Option<StreamController>,
     play_wait_pair: Arc<(Mutex<bool>, std::sync::Condvar)>,
-    pub(super) sample_rate: u32,
     record_wait_pair: Arc<(Mutex<bool>, std::sync::Condvar)>,
     number_of_output_channels: u16,
     number_of_input_channels: u16,
@@ -38,7 +46,10 @@ impl AudioInstance {
     /// Returns an error if the audio instance already exists
     /// Returns an error if the host has not been initialized
     /// Returns an error if the device is not found
-    pub fn new(fs: u32) -> Result<Self, anyhow::Error> {
+    pub fn new(
+        sample_rate: Option<SampleRate>,
+        sample_format: Option<SampleFormat>,
+    ) -> Result<Self, anyhow::Error> {
         // audio overhead - set up the audio device
         let mut device_name = DEVICE_NAME.lock().unwrap().clone();
         let mut binding = HOST.lock().unwrap();
@@ -58,19 +69,24 @@ impl AudioInstance {
             .find(|d| d.name().unwrap_or_default() == device_name)
             .ok_or(anyhow::Error::msg("Device not found"))?;
 
+        let sample_rate = sample_rate.unwrap_or(*DEFAULT_SAMPLE_RATE);
+        let sample_format = sample_format.unwrap_or(*DEFAULT_SAMPLE_FORMAT);
+
         let mut output_config = device.default_output_config()?.config();
-        output_config.sample_rate = cpal::SampleRate(fs);
+        output_config.sample_rate = cpal::SampleRate(sample_rate.0);
         let mut input_config = device.default_input_config()?.config();
-        input_config.sample_rate = cpal::SampleRate(fs);
+        input_config.sample_rate = cpal::SampleRate(sample_rate.0);
 
         // create an instance now to add the streams to later
         let mut zsi_audio_instance = AudioInstance {
+            sample_format: sample_format,
+            sample_rate: sample_rate,
+
             input_buffer: Arc::new(Mutex::new(Vec::new())),
             output_buffer: Arc::new(Mutex::new(Vec::new())),
             input_stream_controller: None,
             output_stream_controller: None,
             play_wait_pair: Arc::new((Mutex::new(true), std::sync::Condvar::new())),
-            sample_rate: fs,
             record_wait_pair: Arc::new((Mutex::new(false), std::sync::Condvar::new())),
             number_of_output_channels: output_config.channels,
             number_of_input_channels: input_config.channels,
@@ -189,7 +205,7 @@ impl AudioInstance {
 
         // ensure the buffer is empty
         *self.input_buffer.lock().unwrap() = Vec::<i32>::with_capacity(
-            (sample_rate as f64 * duration) as usize * self.number_of_input_channels as usize,
+            (sample_rate.0 as f64 * duration) as usize * self.number_of_input_channels as usize,
         );
 
         let record_wait_pair_clone = Arc::clone(&self.record_wait_pair);
@@ -230,7 +246,7 @@ impl AudioInstance {
         // get the duration of the playback in seconds
         // this is used for the record section
         // since output_data is a vector of channels, we need the length of one of the channels not the outer length
-        let duration = output_data[0].len() as f64 / self.sample_rate as f64;
+        let duration = output_data[0].len() as f64 / self.sample_rate.0 as f64;
 
         // Set up the output buffer
         let flattened_data = self.flatten_output_data(output_data);
@@ -252,8 +268,8 @@ impl AudioInstance {
         };
 
         // Set up the input buffer
-        let input_buffer_capacity =
-            (self.sample_rate as f64 * duration) as usize * self.number_of_input_channels as usize;
+        let input_buffer_capacity = (self.sample_rate.0 as f64 * duration) as usize
+            * self.number_of_input_channels as usize;
         *self.input_buffer.lock().unwrap() = Vec::<i32>::with_capacity(input_buffer_capacity);
 
         // Create condition variables to synchronize play and record

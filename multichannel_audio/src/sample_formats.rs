@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SampleFormat {
     /// `f64` sample format. Values have the range -1.0 to 1.0 with 0.0 being the origin.
     F32,
