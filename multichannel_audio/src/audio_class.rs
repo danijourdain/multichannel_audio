@@ -31,11 +31,10 @@ pub struct AudioInstance<T: Sample> {
     sample_rate: SampleRate,
     sample_format: SampleFormat,
 
-    // TODO: remove dummy_value
-    dummy_value: Vec<T>,
-    // TODO: make these not i32
-    input_buffer: Arc<Mutex<Vec<i32>>>,
-    output_buffer: Arc<Mutex<Vec<i32>>>,
+    input_buffer_user: Arc<Mutex<Vec<T>>>,
+    output_buffer_user: Arc<Mutex<Vec<T>>>,
+    input_buffer_stream: Arc<Mutex<Vec<i32>>>,
+    output_buffer_stream: Arc<Mutex<Vec<i32>>>,
     input_stream_controller: Option<StreamController>,
     output_stream_controller: Option<StreamController>,
     play_wait_pair: Arc<(Mutex<bool>, std::sync::Condvar)>,
@@ -94,9 +93,10 @@ impl<T: Sample> AudioInstance<T> {
             sample_format,
             sample_rate,
 
-            dummy_value: Vec::new(),
-            input_buffer: Arc::new(Mutex::new(Vec::new().into())),
-            output_buffer: Arc::new(Mutex::new(Vec::new().into())),
+            input_buffer_user: Arc::new(Mutex::new(Vec::new())),
+            output_buffer_user: Arc::new(Mutex::new(Vec::new())),
+            input_buffer_stream: Arc::new(Mutex::new(Vec::new())),
+            output_buffer_stream: Arc::new(Mutex::new(Vec::new())),
             input_stream_controller: None,
             output_stream_controller: None,
             play_wait_pair: Arc::new((Mutex::new(true), std::sync::Condvar::new())),
@@ -106,7 +106,7 @@ impl<T: Sample> AudioInstance<T> {
         };
 
         // create the output stream
-        let output_buffer_clone = Arc::clone(&audio_instance.output_buffer);
+        let output_buffer_clone = Arc::clone(&audio_instance.output_buffer_stream);
         let play_wait_clone = Arc::clone(&audio_instance.play_wait_pair);
 
         let output_stream_controller = StreamController::new(
@@ -120,7 +120,7 @@ impl<T: Sample> AudioInstance<T> {
         output_stream_controller.send_command(super::stream_controller::StreamCommand::Play);
 
         // create the input stream
-        let input_buffer_clone = Arc::clone(&audio_instance.input_buffer);
+        let input_buffer_clone = Arc::clone(&audio_instance.input_buffer_stream);
         let record_wait_clone = Arc::clone(&audio_instance.record_wait_pair);
 
         let input_stream_controller = StreamController::new(
@@ -163,7 +163,7 @@ impl<T: Sample> AudioInstance<T> {
         let flattened_output_data = self.flatten_output_data(output_data);
 
         // initialize the output buffer
-        *self.output_buffer.lock().unwrap() = flattened_output_data;
+        *self.output_buffer_stream.lock().unwrap() = flattened_output_data;
 
         let play_wait_pair_clone = Arc::clone(&self.play_wait_pair);
         let (lock, cvar) = &*play_wait_pair_clone;
@@ -217,7 +217,7 @@ impl<T: Sample> AudioInstance<T> {
         let sample_rate = self.sample_rate;
 
         // ensure the buffer is empty
-        *self.input_buffer.lock().unwrap() = Vec::<i32>::with_capacity(
+        *self.input_buffer_stream.lock().unwrap() = Vec::<i32>::with_capacity(
             (sample_rate.0 as f64 * duration) as usize * self.number_of_input_channels as usize,
         );
 
@@ -233,7 +233,7 @@ impl<T: Sample> AudioInstance<T> {
         }
         drop(start_recording);
 
-        let recorded_data = self.input_buffer.lock().unwrap().clone();
+        let recorded_data = self.input_buffer_stream.lock().unwrap().clone();
 
         let channel_recordings = self.convert_to_channel_data(recorded_data);
 
@@ -263,7 +263,7 @@ impl<T: Sample> AudioInstance<T> {
 
         // Set up the output buffer
         let flattened_data = self.flatten_output_data(output_data);
-        *self.output_buffer.lock().unwrap() = flattened_data;
+        *self.output_buffer_stream.lock().unwrap() = flattened_data;
 
         // Start playback in a separate thread
         let play_handle = {
@@ -283,7 +283,8 @@ impl<T: Sample> AudioInstance<T> {
         // Set up the input buffer
         let input_buffer_capacity = (self.sample_rate.0 as f64 * duration) as usize
             * self.number_of_input_channels as usize;
-        *self.input_buffer.lock().unwrap() = Vec::<i32>::with_capacity(input_buffer_capacity);
+        *self.input_buffer_stream.lock().unwrap() =
+            Vec::<i32>::with_capacity(input_buffer_capacity);
 
         // Create condition variables to synchronize play and record
         let record_wait_pair_clone = Arc::clone(&self.record_wait_pair);
@@ -306,7 +307,7 @@ impl<T: Sample> AudioInstance<T> {
         record_handle.join().unwrap();
 
         // Get the recorded data
-        let input_buffer = self.input_buffer.lock().unwrap().clone();
+        let input_buffer = self.input_buffer_stream.lock().unwrap().clone();
         let channel_recordings = self.convert_to_channel_data(input_buffer);
 
         Ok(channel_recordings)
