@@ -16,14 +16,20 @@ enum StreamControllerType {
     Output,
 }
 
-pub trait Sample: Send + Sync + Clone {}
-impl Sample for i8 {}
-impl Sample for i16 {}
-impl Sample for i32 {}
-impl Sample for u8 {}
-impl Sample for u16 {}
-impl Sample for u32 {}
-impl Sample for f32 {}
+pub trait Sample: Send + Sync + Clone {
+    fn to_i32(&self) -> i32;
+}
+
+impl Sample for i32 {
+    fn to_i32(&self) -> i32 {
+        *self
+    }
+}
+impl Sample for f32 {
+    fn to_i32(&self) -> i32 {
+        (*self * i32::MAX as f32) as i32
+    }
+}
 
 #[derive(Clone)]
 /// Audio class for handling audio input and output
@@ -152,7 +158,7 @@ impl<T: Sample> AudioInstance<T> {
     ///
     /// # Arguments
     /// output_data: Vec<Vec<i32> - the audio data to play. The outer vector represents the channels and the inner vector represents the samples.
-    pub fn play(&self, output_data: Vec<Vec<i32>>) -> Result<(), anyhow::Error> {
+    pub fn play(&self, output_data: Vec<Vec<T>>) -> Result<(), anyhow::Error> {
         if self.number_of_output_channels != output_data.len() as u16 {
             return Err(anyhow::Error::msg("Number of channels does not match"));
         }
@@ -243,7 +249,7 @@ impl<T: Sample> AudioInstance<T> {
     /// Play and record multiple channels of audio data.
     ///
     /// Play and record simultaneously. See the play and record functions for more details.
-    pub fn play_record(&self, output_data: Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, anyhow::Error> {
+    pub fn play_record(&self, output_data: Vec<Vec<T>>) -> Result<Vec<Vec<i32>>, anyhow::Error> {
         if self.number_of_output_channels != output_data.len() as u16 {
             return Err(anyhow::Error::msg(format!(
                 "Number of channels does not match\n\tExpected: {}, Actual: {}",
@@ -313,12 +319,12 @@ impl<T: Sample> AudioInstance<T> {
         Ok(channel_recordings)
     }
 
-    fn flatten_output_data(&self, output_data: Vec<Vec<i32>>) -> Vec<i32> {
+    fn flatten_output_data(&self, output_data: Vec<Vec<T>>) -> Vec<i32> {
         // convert from vector of channels to vector of samples
         let mut flattened_output_data: Vec<i32> = Vec::new();
         for sample_index in 0..output_data[0].len() {
             for channel in output_data.iter() {
-                flattened_output_data.push(channel[sample_index]);
+                flattened_output_data.push(channel[sample_index].to_i32());
             }
         }
         flattened_output_data
