@@ -16,12 +16,24 @@ enum StreamControllerType {
     Output,
 }
 
+pub trait Sample: Send + Sync + Clone {}
+impl Sample for i8 {}
+impl Sample for i16 {}
+impl Sample for i32 {}
+impl Sample for u8 {}
+impl Sample for u16 {}
+impl Sample for u32 {}
+impl Sample for f32 {}
+
 #[derive(Clone)]
 /// Audio class for handling audio input and output
-pub struct AudioInstance {
+pub struct AudioInstance<T: Sample> {
     sample_rate: SampleRate,
     sample_format: SampleFormat,
 
+    // TODO: remove dummy_value
+    dummy_value: Vec<T>,
+    // TODO: make these not i32
     input_buffer: Arc<Mutex<Vec<i32>>>,
     output_buffer: Arc<Mutex<Vec<i32>>>,
     input_stream_controller: Option<StreamController>,
@@ -33,10 +45,10 @@ pub struct AudioInstance {
 }
 
 // TODO: figure out how to wrap streams in a struct to safely implement Send for AudioInstance
-unsafe impl Send for AudioInstance {}
-unsafe impl Sync for AudioInstance {}
+unsafe impl<T: Sample> Send for AudioInstance<T> {}
+unsafe impl<T: Sample> Sync for AudioInstance<T> {}
 
-impl AudioInstance {
+impl<T: Sample> AudioInstance<T> {
     /// Create a new audio instance. This will use the device that has already been initialized.
     ///
     /// # Arguments
@@ -78,12 +90,13 @@ impl AudioInstance {
         input_config.sample_rate = cpal::SampleRate(sample_rate.0);
 
         // create an instance now to add the streams to later
-        let mut zsi_audio_instance = AudioInstance {
-            sample_format: sample_format,
-            sample_rate: sample_rate,
+        let mut audio_instance: AudioInstance<T> = AudioInstance {
+            sample_format,
+            sample_rate,
 
-            input_buffer: Arc::new(Mutex::new(Vec::new())),
-            output_buffer: Arc::new(Mutex::new(Vec::new())),
+            dummy_value: Vec::new(),
+            input_buffer: Arc::new(Mutex::new(Vec::new().into())),
+            output_buffer: Arc::new(Mutex::new(Vec::new().into())),
             input_stream_controller: None,
             output_stream_controller: None,
             play_wait_pair: Arc::new((Mutex::new(true), std::sync::Condvar::new())),
@@ -93,8 +106,8 @@ impl AudioInstance {
         };
 
         // create the output stream
-        let output_buffer_clone = Arc::clone(&zsi_audio_instance.output_buffer);
-        let play_wait_clone = Arc::clone(&zsi_audio_instance.play_wait_pair);
+        let output_buffer_clone = Arc::clone(&audio_instance.output_buffer);
+        let play_wait_clone = Arc::clone(&audio_instance.play_wait_pair);
 
         let output_stream_controller = StreamController::new(
             super::stream_controller::StreamType::Output {
@@ -107,8 +120,8 @@ impl AudioInstance {
         output_stream_controller.send_command(super::stream_controller::StreamCommand::Play);
 
         // create the input stream
-        let input_buffer_clone = Arc::clone(&zsi_audio_instance.input_buffer);
-        let record_wait_clone = Arc::clone(&zsi_audio_instance.record_wait_pair);
+        let input_buffer_clone = Arc::clone(&audio_instance.input_buffer);
+        let record_wait_clone = Arc::clone(&audio_instance.record_wait_pair);
 
         let input_stream_controller = StreamController::new(
             super::stream_controller::StreamType::Input {
@@ -122,11 +135,11 @@ impl AudioInstance {
 
         // add the streams to the instance
         {
-            zsi_audio_instance.output_stream_controller = Some(output_stream_controller);
-            zsi_audio_instance.input_stream_controller = Some(input_stream_controller);
+            audio_instance.output_stream_controller = Some(output_stream_controller);
+            audio_instance.input_stream_controller = Some(input_stream_controller);
         }
 
-        Ok(zsi_audio_instance)
+        Ok(audio_instance)
     }
 
     /// Play multiple channels of audio data.
