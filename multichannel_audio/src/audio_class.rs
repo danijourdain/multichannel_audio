@@ -18,16 +18,26 @@ enum StreamControllerType {
 
 pub trait Sample: Send + Sync + Clone {
     fn to_i32(&self) -> i32;
+    fn from_i32(value: i32) -> Self;
 }
 
 impl Sample for i32 {
     fn to_i32(&self) -> i32 {
         *self
     }
+
+    fn from_i32(value: i32) -> Self {
+        value
+    }
 }
+
 impl Sample for f32 {
     fn to_i32(&self) -> i32 {
         (*self * i32::MAX as f32) as i32
+    }
+
+    fn from_i32(value: i32) -> Self {
+        value as f32 / i32::MAX as f32
     }
 }
 
@@ -216,7 +226,7 @@ impl<T: Sample> AudioInstance<T> {
     ///
     /// # Returns
     /// A vector of channels where each channel is a vector of samples
-    pub fn record(&self, duration: f64) -> Result<Vec<Vec<i32>>, anyhow::Error> {
+    pub fn record(&self, duration: f64) -> Result<Vec<Vec<T>>, anyhow::Error> {
         // ensure the stream is running
         self.ensure_stream_running(StreamControllerType::Input)?;
 
@@ -249,7 +259,7 @@ impl<T: Sample> AudioInstance<T> {
     /// Play and record multiple channels of audio data.
     ///
     /// Play and record simultaneously. See the play and record functions for more details.
-    pub fn play_record(&self, output_data: Vec<Vec<T>>) -> Result<Vec<Vec<i32>>, anyhow::Error> {
+    pub fn play_record(&self, output_data: Vec<Vec<T>>) -> Result<Vec<Vec<T>>, anyhow::Error> {
         if self.number_of_output_channels != output_data.len() as u16 {
             return Err(anyhow::Error::msg(format!(
                 "Number of channels does not match\n\tExpected: {}, Actual: {}",
@@ -330,13 +340,13 @@ impl<T: Sample> AudioInstance<T> {
         flattened_output_data
     }
 
-    fn convert_to_channel_data(&self, input_buffer: Vec<i32>) -> Vec<Vec<i32>> {
+    fn convert_to_channel_data(&self, input_buffer: Vec<i32>) -> Vec<Vec<T>> {
         // convert recording to a vector of channels
-        let mut channel_recordings: Vec<Vec<i32>> =
+        let mut channel_recordings: Vec<Vec<T>> =
             vec![Vec::new(); self.number_of_input_channels as usize];
         for chunk in input_buffer.chunks_exact(self.number_of_input_channels as usize) {
             for (channel_index, &sample) in chunk.iter().enumerate() {
-                channel_recordings[channel_index].push(sample);
+                channel_recordings[channel_index].push(T::from_i32(sample));
             }
         }
         channel_recordings
